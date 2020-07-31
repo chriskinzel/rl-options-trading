@@ -1,61 +1,40 @@
-import backtrader as bt
+from optionsbacktrader import OptionsBroker, Trader
 
-class TestStrategy(bt.Strategy):
+
+class TestTrader(Trader):
     def __init__(self):
-        self.done = False
+        self._day = 0
 
-    def log(self, txt, dt=None):
-        """ Logging function for this strategy"""
-        dt = dt or self.datas[0].datetime.date(0)
-        print('%s, %s' % (dt.isoformat(), txt))
+    def step(self, current_date, the_broker, account):
+        quote = broker.get_option_quote(symbol='SPX151016C00400000')
 
-    def notify_trade(self, trade):
-        if not trade.isclosed:
-            return
+        if self._day == 0:
+            print(f'Cash: {broker.account.cash}\tMarket Value: {broker.account.get_market_value(broker)}')
+            print(f'Cash PL %: {broker.account.get_percent_cash_pl()}\tMarket PL %: {broker.account.get_percent_market_value_pl(broker)}\n')
 
-        self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' %
-                 (trade.pnl, trade.pnlcomm))
+            long_leg_order = broker.buy(symbol='SPX151016P01870000', size=1)
+            short_leg_order = broker.sell(symbol='SPX151016P01880000', size=1)
 
-    def notify_order(self, order):
-        if order.status in [order.Submitted, order.Accepted]:
-            print(order.status)
-            # Buy/Sell order submitted/accepted to/by broker - Nothing to do
-            return
+            print(f'Got {long_leg_order.symbol} for {long_leg_order.price}')
+            print(f'Sold {short_leg_order.symbol} for {short_leg_order.price}\n')
+        elif self._day == 5:
+            long_leg_close_order = broker.sell(symbol='SPX151016P01870000', size=1)
+            short_leg_close_order = broker.buy(symbol='SPX151016P01880000', size=1)
 
-        # Check if an order has been completed
-        # Attention: broker could reject order if not enough cash
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                self.log(
-                    'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                    (order.executed.price,
-                     order.executed.value,
-                     order.executed.comm))
-            else:  # Sell
-                self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                         (order.executed.price,
-                          order.executed.value,
-                          order.executed.comm))
+            print(f'Sold {long_leg_close_order.symbol} for {long_leg_close_order.price}')
+            print(f'Bought back {short_leg_close_order.symbol} for {short_leg_close_order.price}\n')
 
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log('Order Canceled/Margin/Rejected')
+        print(f'Cash: {broker.account.cash}\tMarket Value: {broker.account.get_market_value(broker)}')
+        print(f'Cash PL %: {broker.account.get_percent_cash_pl()}\tMarket PL %: {broker.account.get_percent_market_value_pl(broker)}\n')
 
-    def next(self):
-        pass
-        # if not self.position:
-        #     self.buy(self.dnames['SPX151016C00400000'])
-        # else:
-        #     self.sell(self.dnames['SPX151016C00400000'])
+        self._day += 1
 
 
-from options_broker import OptionsBroker
+broker = OptionsBroker()
 
-cerebro = OptionsBroker(options_data_path='./Sample_SPX_20151001_to_20151030.json')
+broker.load_historical_data('./Sample_SPX_20151001_to_20151030.sqlite3', fidelity='day')
 
-cerebro.broker.setcash(100000000.0)
+broker.set_trader(TestTrader())
+broker.account.cash = 1000000
 
-cerebro.addstrategy(TestStrategy)
-
-print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-cerebro.run()
-print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+broker.start()

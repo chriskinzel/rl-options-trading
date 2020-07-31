@@ -2,35 +2,62 @@
 
 import sys
 import os
-import json
+
+import sqlite3
 import pandas
 
 if len(sys.argv) < 2:
-    print('Usage: preprocess_csv.py <csv_path>')
-    exit(1)
-
-
-def convert_dataframe(df):
-    result = pandas.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close'])
-
-    prices = df['bid'] * 0.5 + df['ask'] * 0.5
-
-    result['datetime'] = df['quotedate'].copy()
-    result['open'] = prices.copy()
-    result['high'] = prices.copy()
-    result['low'] = prices.copy()
-    result['close'] = prices.copy()
-
-    return json.loads(result.to_json())
-
+    print('Usage preprocess_csv.py <csv_path>')
+    exit(0)
 
 csv_path = sys.argv[1]
+output_path = os.path.splitext(csv_path)[0] + '.sqlite3'
 
 data = pandas.read_csv(csv_path, parse_dates=['expiration', 'quotedate'], header=0)
 
-option_chain = {
-    key: convert_dataframe(data.loc[value]) for key, value in data.groupby('optionroot', sort=False).groups.items()
-}
+db_connection = sqlite3.connect(output_path)
+db = db_connection.cursor()
 
-with open(os.path.splitext(csv_path)[0]+'.json', 'w') as fp:
-    json.dump(option_chain, fp, indent=2)
+with open('./optionsbacktrader/db.sql', 'r') as fp:
+    sql_script = fp.read()
+    db.executescript(sql_script)
+
+for row in data.itertuples():
+    to_insert = (
+        row.underlying,
+        row.underlying_last,
+        row.optionroot,
+        row.type[0].lower(),
+        row.expiration.value,
+        row.quotedate.value,
+        row.strike,
+        row.last,
+        row.bid,
+        row.ask,
+        row.impliedvol,
+        row.delta,
+        row.gamma,
+        row.theta,
+        row.vega
+    )
+
+    db.execute('INSERT INTO historical_data ('
+               'underlying,'
+               'underlying_last,'
+               'optionroot,'
+               'type,'
+               'expiration,'
+               'quotedate,'
+               'strike,'
+               'last,'
+               'bid,'
+               'ask,'
+               'impliedvol,'
+               'delta,'
+               'gamma,'
+               'theta,'
+               'vega'
+               ') VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);', to_insert)
+
+db_connection.commit()
+db_connection.close()
