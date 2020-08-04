@@ -6,6 +6,8 @@ class Account:
     def __init__(self, cash=0):
         self._initial_value = cash
         self._cash = cash
+        self._cash_spent = 0
+        self._cash_gain = 0
         self._positions = {}
         self._executions = []
 
@@ -19,6 +21,13 @@ class Account:
             self._initial_value = cash
 
         self._cash = cash
+
+    def reset(self):
+        self._cash = self._initial_value
+        self._cash_spent = 0
+        self._cash_gain = 0
+        self._positions = {}
+        self._executions = []
 
     def get_positions(self):
         return list(self._positions.values())
@@ -47,9 +56,11 @@ class Account:
                     if existing_position.book_value > 0.0:
                         # Closing out long position
                         self._cash += execution.get_total_value()
+                        self._cash_gain += execution.get_total_value()
                     else:
                         # Closing out short position
                         self._cash += -existing_position.get_total_book_value() * 2 - execution.get_total_value()
+                        self._cash_gain += -existing_position.get_total_book_value() * 2 - execution.get_total_value()
 
                     del self._positions[existing_position.symbol]
                 elif execution.size > existing_position.size:
@@ -63,17 +74,21 @@ class Account:
 
                         # Payment for closing short position
                         self._cash += -existing_position.get_total_book_value() * 2 - existing_position.size * execution.price
+                        self._cash_gain += -existing_position.get_total_book_value() * 2 - existing_position.size * execution.price
 
                         # Price to open long position
                         self._cash -= new_position.size * execution.price
+                        self._cash_spent += new_position.size * execution.price
                     else:
                         # Previous long position now short
 
                         # Payment for closing long position
                         self._cash += existing_position.size * execution.price
+                        self._cash_gain += existing_position.size * execution.price
 
                         # Price to open short position
                         self._cash -= new_position.size * execution.price
+                        self._cash_spent += new_position.size * execution.price
             else:
                 # Increasing existing position
                 existing_position.size += execution.size
@@ -83,9 +98,11 @@ class Account:
                     existing_position.book_value = (existing_position.book_value + -execution.price) / 2.0
 
                 self._cash -= execution.get_total_value()
+                self._cash_spent += execution.get_total_value()
         else:
             self._positions[execution.symbol] = Position.from_execution(execution)
             self._cash -= execution.get_total_value()
+            self._cash_spent += execution.get_total_value()
 
     def get_percent_cash_pl(self):
         return (self._cash - self._initial_value) / self._initial_value
@@ -93,7 +110,7 @@ class Account:
     def get_market_value(self, broker, quotedate=None):
         return sum(
             map(
-                lambda position: + broker.get_market_order_price_for_quote(
+                lambda position: broker.get_market_order_price_for_quote(
                     broker.get_option_quote(symbol=position.symbol, quotedate=quotedate),
                     is_buy=position.book_value < 0.0
                 ) * (
@@ -107,3 +124,9 @@ class Account:
 
     def get_percent_market_value_pl(self, broker, quotedate=None):
         return (self.get_market_value(broker, quotedate) - self._initial_value) / self._initial_value
+
+    def get_percent_spent_pl(self, broker, quotedate=None):
+        if self._cash_spent == 0:
+            return 0.0
+
+        return (self.get_market_value(broker, quotedate) - self._cash + self._cash_gain - self._cash_spent) / self._cash_spent

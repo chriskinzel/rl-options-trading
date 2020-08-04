@@ -34,6 +34,9 @@ CREATE TABLE historical_data (
 )
 WITHOUT ROWID;
 
+CREATE INDEX idx_delta ON historical_data (delta);
+CREATE INDEX idx_exp ON historical_data (expiration);
+
 
 COMMIT TRANSACTION;
 PRAGMA foreign_keys = on;

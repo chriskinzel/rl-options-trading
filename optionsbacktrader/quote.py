@@ -1,9 +1,10 @@
 class Quote:
-    def __init__(self, quotedate, asset, bid, ask):
+    def __init__(self, quotedate, asset, bid, ask, underlying_last):
         self.quotedate = quotedate
         self.asset = asset
         self.bid = bid
         self.ask = ask
+        self.underlying_last = underlying_last
 
     def __str__(self):
         separator = '-' * 100

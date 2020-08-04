@@ -2,6 +2,9 @@ from .execution import OrderType
 
 class Position:
     def __init__(self, symbol, book_value, size, asset):
+        if symbol is None:
+            raise ValueError()
+
         self.symbol = symbol
         self.book_value = book_value
         self.size = size

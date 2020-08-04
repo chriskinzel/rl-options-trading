@@ -153,3 +153,4 @@ fabric.properties
 # Data files
 *.csv
 *.sqlite3
+*_tensorboard

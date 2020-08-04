@@ -6,8 +6,12 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-pandas = "*"
-sqlite3 = "*"
+numpy = "*"
+torch = "*"
+gym = "*"
+stable-baselines3 = "*"
+tensorboard = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.7"
