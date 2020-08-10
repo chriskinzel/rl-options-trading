@@ -20,7 +20,7 @@ class OptionsTradingEnvironment(gym.Env):
 
         # delta, spread delta, dte, buy, sell, ignore
         self.action_space = spaces.Box(
-            low=np.array([-1, 0, 0, 0, 0, 0]), high=np.array([1, 1, np.inf, 1, 1, 1]), dtype=np.float32)
+            low=np.array([-1, 0, 0, 0, 0, 0]), high=np.array([1, 1, 31, 1, 1, 1]), dtype=np.float32)
 
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(max_chain_length, 5 * 8 + 2), dtype=np.float32)
@@ -134,6 +134,7 @@ class OptionsTradingEnvironment(gym.Env):
         vec = [item for sublist in vec for item in sublist] + [
             input_quote.asset.strike / input_quote.underlying_last
         ] + [
+                  # TODO: -1 if short position
                   1.0 if self.broker.account.get_position(symbol=input_quote.asset.symbol) else 0.0
               ]
 
